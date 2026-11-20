@@ -288,7 +288,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
 
           {/* Query Balance */}
-          {balanceQueryable && (
+          {(balanceQueryable || canEditSensitive) && (
             <DropdownMenuItem onClick={handleQueryBalance}>
               {t('Query Balance')}
               <DropdownMenuShortcut>

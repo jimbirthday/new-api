@@ -68,10 +68,10 @@ test.each([
     shown: true,
   },
   {
-    name: 'a plugin that does not',
+    name: 'a plugin without a balance hook, for an admin who can configure account queries',
     type: 61,
     plugin: 'no-balance',
-    shown: false,
+    shown: true,
   },
   {
     // Without the bind permission the plugin is unknown; the server answers.
@@ -82,7 +82,7 @@ test.each([
     shown: true,
   },
 ])(
-  '"Query Balance" follows whether $name can report a balance',
+  '"Query Balance" is available for $name',
   async (item: {
     type: number
     plugin: string

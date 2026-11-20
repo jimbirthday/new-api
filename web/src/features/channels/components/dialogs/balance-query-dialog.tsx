@@ -31,9 +31,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { toIntlLocale } from '@/i18n/languages'
+import {
+  ADMIN_PERMISSION_ACTIONS,
+  ADMIN_PERMISSION_RESOURCES,
+  hasPermission,
+} from '@/lib/admin-permissions'
 import { formatTimestampToDate } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 import { createServerError } from '@/lib/server-error-message'
+import { useAuthStore } from '@/stores/auth-store'
 
 import {
   getCodexUsage,
@@ -49,6 +55,7 @@ import {
   CodexUsageDialog,
   type CodexUsageDialogData,
 } from './codex-usage-dialog'
+import { UpstreamBalanceSettings } from './upstream-balance-settings'
 
 type BalanceQueryDialogProps = {
   initialRawResponse?: string
@@ -60,6 +67,17 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
   const { t, i18n } = useTranslation()
   const { currentRow, setCurrentRow } = useChannels()
   const queryClient = useQueryClient()
+  const user = useAuthStore((state) => state.auth.user)
+  const canConfigureBalance = hasPermission(
+    user,
+    ADMIN_PERMISSION_RESOURCES.CHANNEL,
+    ADMIN_PERMISSION_ACTIONS.SENSITIVE_WRITE
+  )
+  const canQueryBalance = hasPermission(
+    user,
+    ADMIN_PERMISSION_RESOURCES.CHANNEL,
+    ADMIN_PERMISSION_ACTIONS.OPERATE
+  )
   const [isQuerying, setIsQuerying] = useState(false)
   const [balance, setBalance] = useState<number | null>(null)
   const [balanceUpdatedTime, setBalanceUpdatedTime] = useState<number | null>(
@@ -206,65 +224,74 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
         </Button>
       }
     >
-      <div className='space-y-4 py-4'>
-        {rawResponse !== null ? (
-          <>
-            <Alert>
-              <AlertTitle>{t('Balance response not recognized')}</AlertTitle>
-              <AlertDescription>
-                {t(
-                  'The upstream response is valid JSON, but it does not match the OpenAI credit_summary format. The channel balance was not updated.'
-                )}
-              </AlertDescription>
-            </Alert>
-            <CodeBlock
-              code={rawResponse}
-              language='json'
-              maxExpandedLines={24}
-              showLineNumbers
-              title={t('Upstream JSON response')}
-            >
-              <CodeBlockCopyButton />
-            </CodeBlock>
-          </>
-        ) : (
-          <>
-            {/* Current Balance Display */}
-            <div className='bg-muted/50 rounded-lg border p-4'>
-              <div className='text-muted-foreground mb-2 flex items-center gap-2 text-sm'>
-                <IconBadge tone='success' size='xs'>
-                  <DollarSign />
-                </IconBadge>
-                <span>{t('Current Balance')}</span>
+      {(!accountBalance || !canConfigureBalance) && (
+        <div className='space-y-4 py-4'>
+          {rawResponse !== null ? (
+            <>
+              <Alert>
+                <AlertTitle>{t('Balance response not recognized')}</AlertTitle>
+                <AlertDescription>
+                  {t(
+                    'The upstream response is valid JSON, but it does not match the OpenAI credit_summary format. The channel balance was not updated.'
+                  )}
+                </AlertDescription>
+              </Alert>
+              <CodeBlock
+                code={rawResponse}
+                language='json'
+                maxExpandedLines={24}
+                showLineNumbers
+                title={t('Upstream JSON response')}
+              >
+                <CodeBlockCopyButton />
+              </CodeBlock>
+            </>
+          ) : (
+            <>
+              {/* Current Balance Display */}
+              <div className='bg-muted/50 rounded-lg border p-4'>
+                <div className='text-muted-foreground mb-2 flex items-center gap-2 text-sm'>
+                  <IconBadge tone='success' size='xs'>
+                    <DollarSign />
+                  </IconBadge>
+                  <span>{t('Current Balance')}</span>
+                </div>
+                <div className='text-2xl font-bold'>
+                  {formatBalance(balance ?? lastBalance)}
+                </div>
+                <ChannelBalanceDetails
+                  result={currentRow.balance_detail}
+                  className='mt-2'
+                />
+                <div className='text-muted-foreground mt-2 text-xs'>
+                  {t('Last updated:')}{' '}
+                  {formatDate(
+                    balanceUpdatedTime ?? currentRow.balance_updated_time
+                  )}
+                </div>
               </div>
-              <div className='text-2xl font-bold'>
-                {formatBalance(balance ?? lastBalance)}
-              </div>
-              <ChannelBalanceDetails
-                result={currentRow.balance_detail}
-                className='mt-2'
-              />
-              <div className='text-muted-foreground mt-2 text-xs'>
-                {t('Last updated:')}{' '}
-                {formatDate(
-                  balanceUpdatedTime ?? currentRow.balance_updated_time
-                )}
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {/* Balance Update Button */}
-        <Button
-          className='w-full'
-          onClick={handleQueryBalance}
-          disabled={isQuerying}
-        >
-          {isQuerying && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          {!isQuerying && <RefreshCw className='mr-2 h-4 w-4' />}
-          {isQuerying ? t('Querying...') : t('Update Balance')}
-        </Button>
-      </div>
+          {/* Balance Update Button */}
+          <Button
+            className='w-full'
+            onClick={handleQueryBalance}
+            disabled={isQuerying}
+          >
+            {isQuerying && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+            {!isQuerying && <RefreshCw className='mr-2 h-4 w-4' />}
+            {isQuerying ? t('Querying...') : t('Update Balance')}
+          </Button>
+        </div>
+      )}
+      {props.open && canConfigureBalance && (
+        <UpstreamBalanceSettings
+          key={currentRow.id}
+          channelId={currentRow.id}
+          canQuery={canQueryBalance}
+        />
+      )}
     </Dialog>
   )
 }
