@@ -341,6 +341,8 @@ func migrateDB() error {
 
 	err := DB.AutoMigrate(
 		&Channel{},
+		&UpstreamBalanceMonitor{},
+		&UpstreamBalanceVoice{},
 		&Token{},
 		&User{},
 		&UserSession{},

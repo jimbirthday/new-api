@@ -84,7 +84,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const layout = useContext(ChannelRowActionsLayoutContext)
   const channel = row.original
   const modelFetchable = useChannelModelFetchable(channel)
-  const balanceQueryable = useChannelBalanceQueryable(channel)
+  const standardBalanceQueryable = useChannelBalanceQueryable(channel)
+  const balanceQueryable =
+    channel.balance_detail?.upstream_account || standardBalanceQueryable
   const { setOpen, setCurrentRow, upstream } = useChannels()
   const queryClient = useQueryClient()
   const currentUser = useAuthStore((s) => s.auth.user)

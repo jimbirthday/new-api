@@ -859,3 +859,10 @@ export async function getPrefillGroups(
   const res = await api.get('/api/prefill_group', { params: { type } })
   return res.data
 }
+
+export const upstreamBalanceQueryKey = (id: number) => ['upstream-balance', id]
+
+export async function queueUpstreamBalance(id: number) {
+  const response = await api.post(`/api/channel/${id}/upstream_balance/query`)
+  requireServerSuccess(response.data)
+}

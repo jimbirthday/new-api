@@ -254,6 +254,7 @@ import {
   ChannelEditorLoadingState,
   ChannelModelsSection,
 } from './sections'
+import { UpstreamBalanceDialog } from './upstream-balance-dialog'
 
 type ChannelMutateDrawerProps = {
   open: boolean
@@ -5073,6 +5074,12 @@ export function ChannelMutateDrawer({
               </fieldset>
             </div>
             {upstreamModelDetectionFields}
+            {isEditing && channelId && canEditSensitive && (
+              <UpstreamBalanceDialog
+                channelId={channelId}
+                canQuery={canOperateChannel}
+              />
+            )}
             {notesFields}
           </>
         }

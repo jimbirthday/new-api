@@ -19,6 +19,7 @@ import (
 func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(channelTestHandler{})
 	service.RegisterSystemTaskHandler(channelBalanceHandler{})
+	service.RegisterSystemTaskHandler(upstreamBalanceHandler{})
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
@@ -209,4 +210,27 @@ func finishSystemTaskHandler(task *model.SystemTask, runnerID string, status mod
 	if err := model.FinishSystemTask(task.TaskID, runnerID, status, result, errorMessage); err != nil {
 		common.SysLog(common.LogText("system task %s failed to persist result: %v", task.TaskID, err))
 	}
+}
+
+type upstreamBalanceHandler struct{}
+
+func (upstreamBalanceHandler) Type() string { return model.SystemTaskTypeUpstreamBalance }
+
+func (upstreamBalanceHandler) Enabled() bool {
+	due, err := model.HasDueUpstreamBalanceMonitors(common.GetTimestamp())
+	return err == nil && due
+}
+
+func (upstreamBalanceHandler) Interval() time.Duration { return 15 * time.Second }
+
+func (upstreamBalanceHandler) NewPayload() any { return nil }
+
+func (upstreamBalanceHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	processed, err := service.RunUpstreamBalanceMonitors(ctx, service.NewSystemTaskProgressReporter(task, runnerID))
+	summary := map[string]int{"processed": processed}
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, err)
+		return
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
 }

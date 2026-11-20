@@ -213,6 +213,8 @@ func SetApiRouter(router *gin.Engine) {
 		optionRoute.Use(middleware.RootAuth())
 		{
 			optionRoute.GET("/", controller.GetOptions)
+			optionRoute.GET("/upstream_balance_voice", middleware.DisableCache(), controller.GetUpstreamBalanceVoice)
+			optionRoute.PUT("/upstream_balance_voice", middleware.CriticalRateLimit(), middleware.DisableCache(), controller.SaveUpstreamBalanceVoice)
 			optionRoute.GET("/request_policy", controller.GetRequestPolicy)
 			optionRoute.PATCH("/request_policy", controller.UpdateRequestPolicy)
 			optionRoute.PUT("/", controller.UpdateOption)

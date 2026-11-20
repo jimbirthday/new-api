@@ -55,6 +55,7 @@ const channelBalanceResultSchema = z.object({
 })
 
 export const channelBalanceDetailSchema = channelBalanceResultSchema.extend({
+  upstream_account: z.boolean().optional(),
   /** The balance of each key of a multi-key channel, by key index. */
   keys: z.record(z.string(), channelBalanceResultSchema).nullish(),
 })

@@ -49,6 +49,11 @@ func registerChannelRoutes(apiRouter *gin.RouterGroup) {
 		controller.GetChannelKey,
 	)
 
+	channelRoute.GET("/:id/upstream_balance", middleware.RequirePermission(authz.ChannelSensitiveWrite), middleware.DisableCache(), controller.GetUpstreamBalanceMonitor)
+	channelRoute.PUT("/:id/upstream_balance", middleware.RequirePermission(authz.ChannelSensitiveWrite), middleware.CriticalRateLimit(), middleware.DisableCache(), controller.SaveUpstreamBalanceMonitor)
+	channelRoute.DELETE("/:id/upstream_balance", middleware.RequirePermission(authz.ChannelSensitiveWrite), middleware.CriticalRateLimit(), controller.DeleteUpstreamBalanceMonitor)
+	channelRoute.POST("/:id/upstream_balance/query", middleware.RequirePermission(authz.ChannelOperate), middleware.CriticalRateLimit(), controller.QueueUpstreamBalanceQuery)
+
 	for _, route := range channelPermissionRoutes {
 		handlePermissionRoute(channelRoute, route.method, route.path, route.permission, route.handler)
 	}

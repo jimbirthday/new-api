@@ -715,9 +715,18 @@ func UpdateChannelBalance(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	channel, err := model.CacheGetChannel(id)
+	channel, err := model.GetChannelById(id, true)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+	if detail := channel.GetBalanceDetail(); detail != nil && detail.UpstreamAccount {
+		monitor, err := model.FindUpstreamBalanceMonitor(c.Request.Context(), id)
+		if err != nil || monitor == nil {
+			common.ApiErrorT(c, "Unable to load upstream balance settings")
+			return
+		}
+		respondUpstreamChannelBalance(c, monitor)
 		return
 	}
 	if channel.Type == constant.ChannelTypeTaskPlugin {

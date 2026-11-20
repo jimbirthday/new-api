@@ -143,7 +143,14 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/subscription/admin/user_subscriptions/:id/invalidate": accessTokenScopeRule("billing:write"),
 	"DELETE /api/subscription/admin/user_subscriptions/:id":          accessTokenScopeRule("billing:write"),
 
+	"GET /api/channel/:id/upstream_balance":        accessTokenSessionRule,
+	"PUT /api/channel/:id/upstream_balance":        accessTokenSessionRule,
+	"DELETE /api/channel/:id/upstream_balance":     accessTokenSessionRule,
+	"POST /api/channel/:id/upstream_balance/query": accessTokenSessionRule,
+
 	// router/api-router.go: /api/option
+	"GET /api/option/upstream_balance_voice":                     accessTokenSessionRule,
+	"PUT /api/option/upstream_balance_voice":                     accessTokenSessionRule,
 	"GET /api/option/":                                           accessTokenScopeRule("option:read"),
 	"GET /api/option/request_policy":                             accessTokenScopeRule("option:read"),
 	"PATCH /api/option/request_policy":                           accessTokenScopeRule("option:write"),

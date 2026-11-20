@@ -195,6 +195,9 @@ func balanceErrorText(err error, key string) string {
 // balances and disables what has none left, when the channel's automatic
 // disabling is on: the channel, or a multi-key plugin channel's empty keys.
 func updateBalanceInRun(channel *model.Channel) {
+	if detail := channel.GetBalanceDetail(); detail != nil && detail.UpstreamAccount {
+		return
+	}
 	if channel.Type == constant.ChannelTypeTaskPlugin {
 		plugin, ok := service.PluginOfChannel(channel)
 		if !ok || !pluginReportsBalance(plugin) {

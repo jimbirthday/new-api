@@ -1852,6 +1852,7 @@ func CopyChannel(c *gin.Context) {
 		clone.UsedQuota = 0
 	}
 	service.DropPluginCredentials(&clone)
+	clone.DropUpstreamBalanceDetail()
 
 	if err := clone.ValidateSettings(); err != nil {
 		common.SysError(common.LogText("failed to validate cloned channel: %s", err.Error()))

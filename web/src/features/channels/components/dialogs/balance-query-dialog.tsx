@@ -35,7 +35,12 @@ import { formatTimestampToDate } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 import { createServerError } from '@/lib/server-error-message'
 
-import { getCodexUsage, updateChannelBalance } from '../../api'
+import {
+  getCodexUsage,
+  queueUpstreamBalance,
+  updateChannelBalance,
+  upstreamBalanceQueryKey,
+} from '../../api'
 import { channelsQueryKeys } from '../../lib'
 import { formatChannelBalanceSummary } from '../../lib/channel-balance'
 import { ChannelBalanceDetails } from '../channel-balance-details'
@@ -66,7 +71,8 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
   const [codexUsageResponse, setCodexUsageResponse] =
     useState<CodexUsageDialogData | null>(null)
 
-  const isCodex = currentRow?.type === 57
+  const accountBalance = currentRow?.balance_detail?.upstream_account === true
+  const isCodex = !accountBalance && currentRow?.type === 57
 
   const handleQueryCodexUsage = async () => {
     const row = currentRow
@@ -97,6 +103,14 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
   const handleQueryBalance = async () => {
     setIsQuerying(true)
     try {
+      if (accountBalance) {
+        await queueUpstreamBalance(currentRow.id)
+        await queryClient.invalidateQueries({
+          queryKey: upstreamBalanceQueryKey(currentRow.id),
+        })
+        toast.success(t('Balance query queued'))
+        return
+      }
       const response = await updateChannelBalance(currentRow.id)
       if (response.success && response.balance !== undefined) {
         const newBalance = response.balance
@@ -147,6 +161,10 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
       abbreviate: false,
       locale: toIntlLocale(i18n.resolvedLanguage || i18n.language),
     })
+
+  const lastBalance = accountBalance
+    ? (currentRow.balance_detail?.amount ?? Number.NaN)
+    : currentRow.balance
 
   const formatDate = (timestamp: number) => {
     if (!timestamp) return 'Never'
@@ -220,9 +238,7 @@ export function BalanceQueryDialog(props: BalanceQueryDialogProps) {
                 <span>{t('Current Balance')}</span>
               </div>
               <div className='text-2xl font-bold'>
-                {balance !== null
-                  ? formatBalance(balance)
-                  : formatBalance(currentRow.balance)}
+                {formatBalance(balance ?? lastBalance)}
               </div>
               <ChannelBalanceDetails
                 result={currentRow.balance_detail}

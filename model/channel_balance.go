@@ -13,8 +13,9 @@ const channelBalanceDetailKey = "balance_detail"
 // multi-key plugin channel the result of each key by its 0-based index.
 type ChannelBalanceDetail struct {
 	jsplugin.BalanceResult
-	Error string                          `json:"error,omitempty"`
-	Keys  map[string]ChannelBalanceDetail `json:"keys,omitempty"`
+	UpstreamAccount bool                            `json:"upstream_account,omitempty"`
+	Error           string                          `json:"error,omitempty"`
+	Keys            map[string]ChannelBalanceDetail `json:"keys,omitempty"`
 }
 
 // GetBalanceDetail returns the channel's last balance query, nil before the
@@ -66,4 +67,15 @@ func UpdateChannelBalanceDetail(channelID int, update func(stored *ChannelBalanc
 		return updates, nil
 	})
 	return detail, err
+}
+
+// DropUpstreamBalanceDetail removes a copied account balance from a new channel.
+func (channel *Channel) DropUpstreamBalanceDetail() {
+	if detail := channel.GetBalanceDetail(); detail != nil && detail.UpstreamAccount {
+		info := channel.GetOtherInfo()
+		delete(info, channelBalanceDetailKey)
+		channel.SetOtherInfo(info)
+		channel.Balance = 0
+		channel.BalanceUpdatedTime = 0
+	}
 }

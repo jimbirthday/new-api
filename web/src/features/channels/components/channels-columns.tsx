@@ -60,7 +60,12 @@ import {
 } from '@/lib/server-error-message'
 import { truncateText } from '@/lib/utils'
 
-import { getCodexUsage, updateChannelBalance } from '../api'
+import {
+  getCodexUsage,
+  queueUpstreamBalance,
+  updateChannelBalance,
+  upstreamBalanceQueryKey,
+} from '../api'
 import {
   CHANNEL_STATUS_CONFIG,
   CHANNEL_TYPE_TASK_PLUGIN,
@@ -355,8 +360,10 @@ export function BalanceCell({ channel }: { channel: Channel }) {
   const isTagRow = isTagAggregateRow(channel)
   const balance = channel.balance || 0
   const usedQuota = channel.used_quota || 0
-  const balanceQueryable = useChannelBalanceQueryable(channel)
+  const standardBalanceQueryable = useChannelBalanceQueryable(channel)
   const detail = channel.balance_detail
+  const accountBalance = detail?.upstream_account === true
+  const balanceQueryable = accountBalance || standardBalanceQueryable
   const usedPercent = getChannelBalanceUsedPercent(detail?.windows)
   const ownCurrency =
     detail?.amount != null &&
@@ -413,7 +420,7 @@ export function BalanceCell({ channel }: { channel: Channel }) {
           })
         )
       : remainingFull
-  if (!balanceQueryable) {
+  if (!balanceQueryable || (accountBalance && detail?.amount == null)) {
     remainingFull = '-'
     remainingDisplay = '-'
   } else if (
@@ -472,7 +479,8 @@ export function BalanceCell({ channel }: { channel: Channel }) {
   // Regular channel row: show used and remaining with click to update
   const variant = getBalanceVariant(balance)
   const isInferenceChannel =
-    channel.type === CHANNEL_TYPE_VLLM || channel.type === CHANNEL_TYPE_SGLANG
+    !accountBalance &&
+    (channel.type === CHANNEL_TYPE_VLLM || channel.type === CHANNEL_TYPE_SGLANG)
   const inferenceStatusLabel =
     channel.type === CHANNEL_TYPE_SGLANG ? t('SGLang status') : t('vLLM status')
 
@@ -487,7 +495,21 @@ export function BalanceCell({ channel }: { channel: Channel }) {
     }
 
     setIsUpdating(true)
-    if (channel.type === 57) {
+    if (accountBalance) {
+      try {
+        await queueUpstreamBalance(channel.id)
+        toast.success(t('Balance query queued'))
+        void queryClient.invalidateQueries({
+          queryKey: upstreamBalanceQueryKey(channel.id),
+        })
+      } catch (error) {
+        handleServerError(error, t('Unable to queue upstream balance query'))
+      } finally {
+        setIsUpdating(false)
+      }
+      return
+    }
+    if (!accountBalance && channel.type === 57) {
       try {
         const res = await getCodexUsage(channel.id)
         if (!res.success) {
@@ -533,7 +555,7 @@ export function BalanceCell({ channel }: { channel: Channel }) {
   let remainingBadgeLabel = sensitiveVisible ? remainingDisplay : SENSITIVE_MASK
   if (sensitiveVisible && isUpdating) {
     remainingBadgeLabel = t('Updating...')
-  } else if (sensitiveVisible && channel.type === 57) {
+  } else if (sensitiveVisible && !accountBalance && channel.type === 57) {
     remainingBadgeLabel = t('Account Info')
   } else if (sensitiveVisible && isInferenceChannel) {
     remainingBadgeLabel = inferenceStatusLabel
@@ -541,13 +563,13 @@ export function BalanceCell({ channel }: { channel: Channel }) {
   let remainingTooltipLabel = remainingLabel
   if (!sensitiveVisible) {
     remainingTooltipLabel = maskedRemainingLabel
-  } else if (channel.type === 57) {
+  } else if (!accountBalance && channel.type === 57) {
     remainingTooltipLabel = t('Click to view Codex usage')
   } else if (isInferenceChannel) {
     remainingTooltipLabel = inferenceStatusLabel
   }
   let remainingBadgeVariant: StatusBadgeProps['variant'] = variant
-  if (channel.type === 57 || isInferenceChannel) {
+  if ((!accountBalance && channel.type === 57) || isInferenceChannel) {
     remainingBadgeVariant = 'info'
   } else if (isUpdating || !balanceQueryable) {
     remainingBadgeVariant = 'neutral'
@@ -571,7 +593,8 @@ export function BalanceCell({ channel }: { channel: Channel }) {
       onClick={balanceClickable ? handleClickUpdate : undefined}
     />
   )
-  const balanceQueryHint = balanceClickable && channel.type !== 57
+  const balanceQueryHint =
+    balanceClickable && (accountBalance || channel.type !== 57)
 
   return (
     <TooltipProvider>
